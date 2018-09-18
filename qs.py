@@ -41,7 +41,7 @@ if Path("qs.psw").is_file() :
 else:
     username =  input("Username: ")
     passwd = input("Password: ")
-    if input("Do you want to save the password? (y/n)") == "y":
+    if input("Do you want to save the username and password? WARNING SAVED IN CLEAR TEXT!  (y/n)") == "y":
         with open('qs.psw', 'w') as outfile:
             json.dump({"email": username,"password":passwd}, outfile)
     print("Username and passwd saved to qs.psw")
