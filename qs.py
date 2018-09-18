@@ -6,12 +6,12 @@ from pathlib import Path
 
 class UserResource(Resource):
     actions = {
-        'studentSubjects': {'method': 'POST', 'url': 'studentSubjects'},
-        'login': {'method': 'POST', 'url': 'https://qs.stud.iie.ntnu.no/loginForm'},
-        'addToQueue': {'method': 'POST', 'url': 'addQueueElement'},
-		'postpone': {'method': 'POST', 'url': 'studentPostponeQueueElement'},
-		'getQueue': {'method': 'POST', 'url': 'getQueue'},
-        'room': {'method': 'GET', 'url': 'room'}
+        'studentSubjects': {'method': 'POST', 'url': 'res/studentSubjects'},
+        'login': {'method': 'POST', 'url': 'loginForm'},
+        'addToQueue': {'method': 'POST', 'url': 'res/addQueueElement'},
+		'postpone': {'method': 'POST', 'url': 'res/studentPostponeQueueElement'},
+		'getQueue': {'method': 'POST', 'url': 'res/getQueue'},
+        'room': {'method': 'GET', 'url': 'res/room'}
     }
 
 header = {
@@ -26,7 +26,7 @@ header = {
     'Accept-Language': 'nb-NO,nb;q=0.8,no;q=0.6,nn;q=0.4,en-US;q=0.2,en;q=0.2,da;q=0.2'
     }
 qs_api = API(
-    api_root_url='https://qs.stud.iie.ntnu.no/res/', 
+    api_root_url='https://qs.stud.iie.ntnu.no/',
 	headers=header,
     json_encode_body=True
 )
@@ -79,6 +79,8 @@ help = False
 if input("Help? (y/n)") == "y":
 	help = True
 
+message = input("Message:")
+
 print("Wainting for queue")
 
 while (subjectQueueStatus == 0):    
@@ -88,7 +90,7 @@ while (subjectQueueStatus == 0):
     time.sleep(3)
     
 print("Queue open")
-queue_id = qs_api.qs.addToQueue(body={"subjectID": subject_id,"roomID": room_id,"desk": desk_id,"message":"","help":help,"exercises":tasks}).body["queueElementID"]
+queue_id = qs_api.qs.addToQueue(body={"subjectID": subject_id,"roomID": room_id,"desk": desk_id,"message":message,"help":help,"exercises":tasks}).body["queueElementID"]
 
 print("Added to queue")
 
