@@ -51,7 +51,7 @@ header['Cookie'] = req.headers["Set-Cookie"]
 
 for element in qs_api.qs.studentSubjects().body:
     if element['subjectActive'] != 0:
-        print("Id:",element['subjectID'], element['subjectCode'], element['subjectName'])
+        print("Id:",element['subjectID'], element['subjectCode'], element['subjectName'], "(Active)" if element['subjectQueueStatus'] == 1 else "")
 
 subject_id = int(input('Enter subject ID: '))
 
@@ -156,9 +156,6 @@ def upAndDown():
 						"""
 
 						
-if input("Go to top? (y/n)") == "y":
+'''if input("Go to top? (y/n)") == "y":
 	goUp()
-	print("Moved to top.")
-
-#queueElement 
-#while ():
+	print("Moved to top.")'''
