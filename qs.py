@@ -3,6 +3,7 @@ from simple_rest_client.resource import Resource
 import time
 import json
 from pathlib import Path
+import getpass
 
 class UserResource(Resource):
     actions = {
@@ -42,7 +43,7 @@ if Path(file).is_file() :
     print("Username and password loaded from ", file)
 else:
     username =  input("Username: ")
-    passwd = input("Password: ")
+    passwd = getpass.getpass("Password: ")
     if input("Do you want to save the username and password? WARNING SAVED IN CLEAR TEXT!  (y/n)") == "y":
         with open(file, 'w') as outfile:
             json.dump({"email": username,"password":passwd}, outfile)
