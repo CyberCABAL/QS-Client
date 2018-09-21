@@ -32,19 +32,21 @@ qs_api = API(
 )
 qs_api.add_resource(resource_name='qs', resource_class=UserResource)
 
-if Path("qs.psw").is_file() :
-    with open('qs.psw') as data_file:
+file = str(Path.home()) + "/.qs.psw"
+
+if Path(file).is_file() :
+    with open(file) as data_file:
         data_loaded = json.load(data_file)
         username = data_loaded["email"]
         passwd = data_loaded["password"]
-    print("Username and password loaded from qs.psw")
+    print("Username and password loaded from ", file)
 else:
     username =  input("Username: ")
     passwd = input("Password: ")
     if input("Do you want to save the username and password? WARNING SAVED IN CLEAR TEXT!  (y/n)") == "y":
-        with open('qs.psw', 'w') as outfile:
+        with open(file, 'w') as outfile:
             json.dump({"email": username,"password":passwd}, outfile)
-    print("Username and passwd saved to qs.psw")
+    print("Username and passwd saved to ", file)
 
 req = qs_api.qs.login(body={"email": username,"password":passwd})
 header['Cookie'] = req.headers["Set-Cookie"]
