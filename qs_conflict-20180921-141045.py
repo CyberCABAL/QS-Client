@@ -3,15 +3,17 @@ from simple_rest_client.resource import Resource
 import time
 import json
 from pathlib import Path
+import getpass
 
 class UserResource(Resource):
     actions = {
         'studentSubjects': {'method': 'POST', 'url': 'res/studentSubjects'},
         'login': {'method': 'POST', 'url': 'loginForm'},
         'addToQueue': {'method': 'POST', 'url': 'res/addQueueElement'},
-		'postpone': {'method': 'POST', 'url': 'res/studentPostponeQueueElement'},
-		'getQueue': {'method': 'POST', 'url': 'res/getQueue'},
-        'room': {'method': 'GET', 'url': 'res/room'}
+	'postpone': {'method': 'POST', 'url': 'res/studentPostponeQueueElement'},
+	'getQueue': {'method': 'POST', 'url': 'res/getQueue'},
+        'room': {'method': 'GET', 'url': 'res/room'},
+	'addPersonToQueueElement': {'method': 'POST', 'url': 'res/addPersonToQueueElement'}
     }
 
 header = {
@@ -32,19 +34,21 @@ qs_api = API(
 )
 qs_api.add_resource(resource_name='qs', resource_class=UserResource)
 
-if Path("qs.psw").is_file() :
-    with open('qs.psw') as data_file:
+file = str(Path.home()) + "/.qs.psw"
+
+if Path(file).is_file() :
+    with open(file) as data_file:
         data_loaded = json.load(data_file)
         username = data_loaded["email"]
         passwd = data_loaded["password"]
-    print("Username and password loaded from qs.psw")
+    print("Username and password loaded from ", file)
 else:
     username =  input("Username: ")
-    passwd = input("Password: ")
+    passwd = getpass.getpass("Password: ")
     if input("Do you want to save the username and password? WARNING SAVED IN CLEAR TEXT!  (y/n)") == "y":
-        with open('qs.psw', 'w') as outfile:
+        with open(file, 'w') as outfile:
             json.dump({"email": username,"password":passwd}, outfile)
-    print("Username and passwd saved to qs.psw")
+    print("Username and passwd saved to ", file)
 
 req = qs_api.qs.login(body={"email": username,"password":passwd})
 header['Cookie'] = req.headers["Set-Cookie"]
@@ -87,10 +91,8 @@ while (subjectQueueStatus == 0):
     for element in qs_api.qs.studentSubjects().body:
         if (element['subjectID'] == subject_id):
             subjectQueueStatus = element['subjectQueueStatus']
-            if subjectQueueStatus != 0:
-                break
     time.sleep(3)
-
+    
 print("Queue open")
 queue_id = qs_api.qs.addToQueue(body={"subjectID": subject_id,"roomID": room_id,"desk": desk_id,"message":message,"help":help,"exercises":tasks}).body["queueElementID"]
 
