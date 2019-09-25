@@ -2,162 +2,215 @@ from simple_rest_client.api import API
 from simple_rest_client.resource import Resource
 import time
 import json
+import getpass
 from pathlib import Path
+from qsLink import QSPower
 
-class UserResource(Resource):
-    actions = {
-        'studentSubjects': {'method': 'POST', 'url': 'res/studentSubjects'},
-        'login': {'method': 'POST', 'url': 'loginForm'},
-        'addToQueue': {'method': 'POST', 'url': 'res/addQueueElement'},
-		'postpone': {'method': 'POST', 'url': 'res/studentPostponeQueueElement'},
-		'getQueue': {'method': 'POST', 'url': 'res/getQueue'},
-        'room': {'method': 'GET', 'url': 'res/room'}
-    }
+"""Interface layer."""
 
-header = {
-    'Content-Type': 'application/json;charset=UTF-8',
-    'Accept': 'application/json, text/plain, */*',
-    'Host': 'qs.stud.iie.ntnu.no',
-    'Origin': 'https://qs.stud.iie.ntnu.no',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
-    'DNT': '1',
-    'Referer': 'https://qs.stud.iie.ntnu.no/student',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Accept-Language': 'nb-NO,nb;q=0.8,no;q=0.6,nn;q=0.4,en-US;q=0.2,en;q=0.2,da;q=0.2'
-    }
-qs_api = API(
-    api_root_url='https://qs.stud.iie.ntnu.no/',
-	headers=header,
-    json_encode_body=True
-)
-qs_api.add_resource(resource_name='qs', resource_class=UserResource)
+# Observation of socket communication, which might be useful later;
+# Socket: 42["80queueSocketEv", {time: "2018-03-06T15:21:44.627Z"}]		# three times
+# Socket: 42["queueStartStopEv", {time: "2018-03-06T15:21:49.543Z"}]
+# Request URL:wss://qs.stud.iie.ntnu.no/socket.io/?EIO=3&transport=websocket&sid=Jd_Q3ojLb2IHbX7bAA7c
+# Request Method:GET
+# Status Code:101 Switching Protocols
 
-if Path("qs.psw").is_file() :
-    with open('qs.psw') as data_file:
-        data_loaded = json.load(data_file)
-        username = data_loaded["email"]
-        passwd = data_loaded["password"]
-    print("Username and password loaded from qs.psw")
-else:
-    username =  input("Username: ")
-    passwd = input("Password: ")
-    if input("Do you want to save the username and password? WARNING SAVED IN CLEAR TEXT!  (y/n)") == "y":
-        with open('qs.psw', 'w') as outfile:
-            json.dump({"email": username,"password":passwd}, outfile)
-    print("Username and passwd saved to qs.psw")
+unlimitedPower = QSPower();
 
-req = qs_api.qs.login(body={"email": username,"password":passwd})
-header['Cookie'] = req.headers["Set-Cookie"]
+repeat = True;
+myPos = None;
+login = False;
 
-for element in qs_api.qs.studentSubjects().body:
-    if element['subjectActive'] != 0:
-        print("Id:",element['subjectID'], element['subjectCode'], element['subjectName'], "(Active)" if element['subjectQueueStatus'] == 1 else "")
+def win():
+    file = input("Enter file name to load queue data from('-1' to skip): ") + ".data";
+    print();
+    if (file != "-1.data"):
+        if (Path(file).is_file()):
+            with open(file) as data_file:
+                data_loaded = json.load(data_file);
+                subject_id = data_loaded["subject"];
+                room_id = data_loaded["room"];
+                desk_id = data_loaded["desk"];
+            print("Queue data loaded from " + file);
+    else:
+        unlimitedPower.printSubjects();
+        subject_id = int(input("Enter subject ID: "));
+        print();
 
-subject_id = int(input('Enter subject ID: '))
+        unlimitedPower.printRooms();
+        room_id = int(input("Enter room ID: "));
+        desk_id = int(input("Enter desk ID: "));
+        print();
 
-rooms = qs_api.qs.room().body
+        if (input("Do you want to save the data? (y/n) ") == "y"):
+            writeFile(input("File name(without extension): ") + ".data", {"subject": subject_id,"room":room_id ,"desk":desk_id});
 
-for element in rooms:
-    print("Id:",element['roomID'], element['roomNumber'])
+    h = needHelp();
+    print();
+    tasks = taskArray();
+    print();
 
-room_id = int(input('Enter room ID: '))
-desk_id = int(input('Enter desk ID: '))
+    unlimitedPower.waitQueue(subject_id, 3); # Max delay is 3 seconds. Faster than any human using a browser.
+    #"Knowledge is power"
+    queue_id = unlimitedPower.addToQueue(subject_id, room_id, desk_id, "Knowledge is power", h, tasks);
+    print("Added to queue. Element ID is: ", queue_id);
+    global myPos;
+    myPos = queue_id;
 
-tasks = []
-i = -1
+def scan():
+    unlimitedPower.detectQueues();
 
-print("Add tasks (0 to exit)")
-while i != 0 or tasks.__len__() == 0:
-    i = int(input("Add task: "))
-    if i !=0:
-        tasks.append(i)
-        print("Tasks: ", tasks)
+def subjects():
+    unlimitedPower.printSubjects();
 
-subjectQueueStatus = 0
+def checkID(params, inputText):
+    ID = None;
+    if (len(params) > 0):
+        ID = params[0];
+    while (not (ID or isinstance(ID, int))):
+        ID = input(inputText);
+    return ID;
 
-help = False
-if input("Help? (y/n)") == "y":
-	help = True
+"""def checkNParams(params, inputText, l):
+    out = [];
+    for i in range(l):
+        if (len(params) > i):
+            param = params[i];
+        elif (not param):
+            param = input(inputText[i]);
+        out.append(param);
+    return out;"""
 
-message = input("Message:")
+def upd(params = []):
+    unlimitedPower.upd(checkID(params, "ID: "));
 
-print("Wainting for queue")
+def line(params = []):
+    unlimitedPower.printQueue(checkID(params, "Subject ID: "));
 
-while (subjectQueueStatus == 0):    
-    for element in qs_api.qs.studentSubjects().body:
-        if (element['subjectID'] == subject_id):
-            subjectQueueStatus = element['subjectQueueStatus']
-            if subjectQueueStatus != 0:
-                break
-    time.sleep(3)
+def destroy(params = []):
+    unlimitedPower.end(checkID(params, "ID: "));
 
-print("Queue open")
-queue_id = qs_api.qs.addToQueue(body={"subjectID": subject_id,"roomID": room_id,"desk": desk_id,"message":message,"help":help,"exercises":tasks}).body["queueElementID"]
+def initiate(params = []):
+    unlimitedPower.start(checkID(params, "ID: "));
 
-print("Added to queue")
+def follow(params = []):
+    if (len(params) > 0):
+        element = params[0];
+    if (element == "me" and myPos):
+        element = myPos;
+    elif (not element):
+        element = input("Element ID: ");
+    if (len(params) > 1):
+        person = params[1];
+    elif (not person):
+        person = input("Subject PID: ");
+    unlimitedPower.joinQueueElement(element, person, taskArray());
+    print("Added", person, "to", element);
 
-def goUp():
-	usedPos = []
+def leave():
+    global login;
+    if (login):
+        unlimitedPower.logout();
+        login = False;
 
-	for element in qs_api.qs.getQueue(body={"subjectID": subject_id}).body:
-		print(element)
-		
-		usedPos.append(element["queueElementPosition"])
-		
-		#for i in range(element["queueElementPosition"]):
-			#qs_api.qs.postpone(body={"queueElementPosition":element["queueElementPosition"],"queueElementPositionNext":0,"queueElementID":queue_id,"subjectID":subject_id})
-		if element["queueElementID"] == queue_id:
-			queueMaxPos = element["queueElementPosition"]
-			
-			currentPos = element["queueElementPosition"]
-		
-			for i in range(element["queueElementPosition"] - 1):
-				
-				if (currentPos - i) in usedPos:
-					time.sleep(1.5)
-					print(queueMaxPos - i - 1)
-					qs_api.qs.postpone(body={"queueElementPosition":currentPos,"queueElementPositionNext": queueMaxPos - i - 1,"queueElementID":queue_id,"subjectID":subject_id})
-					currentPos = queueMaxPos - i - 1
+def terminate():
+    leave();
+    global repeat;
+    repeat = False;
 
-def upAndDown():
+def move(params):
+    if (len(params) < 4):
+        print("Insufficient parameteres for command");
+        params = [input("Current: "), input("Target: "), input("queueEID: "), input("subjectID: ")];
+    unlimitedPower.delay(params[0], params[1], params[2], params[3]);
 
-	usedPos = []
+def update(params):
+    if (len(params) < 5):
+        print("Insufficient parameteres for command");
+        params = [input("Room: "), input("Desk: "), input("Message: "), needHelp(), input("queueEID: ")];
+    unlimitedPower.update(params[0], params[1], params[2], params[3], params[4]);
 
-	for element in qs_api.qs.getQueue(body={"subjectID": subject_id}).body:
-		print(element)
-		
-		usedPos.append(element["queueElementPosition"])
-		
-		#for i in range(element["queueElementPosition"]):
-			#qs_api.qs.postpone(body={"queueElementPosition":element["queueElementPosition"],"queueElementPositionNext":0,"queueElementID":queue_id,"subjectID":subject_id})
-		if element["queueElementID"] == queue_id:
-			queueMaxPos = element["queueElementPosition"]
-			
-			currentPos = element["queueElementPosition"]
-		
-			for i in range(element["queueElementPosition"] - 1):
-				
-				if (currentPos - i) in usedPos:
-					time.sleep(1.5)
-					print(queueMaxPos - i - 1)
-					qs_api.qs.postpone(body={"queueElementPosition":currentPos,"queueElementPositionNext": queueMaxPos - i - 1,"queueElementID":queue_id,"subjectID":subject_id})
-					currentPos = queueMaxPos - i - 1
-			
-			"""
-			for element in qs_api.qs.getQueue(body={"subjectID": subject_id}).body:
-				print(element)
-				
-				#for i in range(element["queueElementPosition"]):
-					#qs_api.qs.postpone(body={"queueElementPosition":element["queueElementPosition"],"queueElementPositionNext":0,"queueElementID":queue_id,"subjectID":subject_id})
-				if element["queueElementID"] == queue_id:
-					
-					for i in range(queueMaxPos):
-						print(i);
-						time.sleep(0.2)
-						qs_api.qs.postpone(body={"queueElementPosition":element["queueElementPosition"] + i,"queueElementPositionNext": element["queueElementPosition"] + i + 1,"queueElementID":queue_id,"subjectID":subject_id})
-						"""
+def locateSuperiors(params = []):
+    unlimitedPower.printTeachers(checkID(params, "Subject ID: "));
 
-						
-'''if input("Go to top? (y/n)") == "y":
-	goUp()
-	print("Moved to top.")'''
+def enter(params = []):
+    if (len(params) < 1):
+        load = input("Load login?(y/n): ");
+    load = params[0];
+    global login;
+    fileName = "qs.psw";
+    if (load == "y"):
+        if (Path(fileName).is_file()):
+            with open(fileName) as data_file:
+                data_loaded = json.load(data_file);
+                username = data_loaded["email"];
+                passw = data_loaded["password"];
+            unlimitedPower.login(username, passw);
+            passw = None;
+            print("Login loaded from", fileName);
+        else:
+            print("Unable to locate file.")
+            return False;
+        login = True;
+        return True;
+    else:
+        username = input("User: ");
+        passw = getpass.getpass("Password: ");
+        unlimitedPower.login(username, passw);
+        if (input("Do you want to save the password (In plain text)? (y/n) ") == "y"):
+            writeFile(fileName, {"email": username, "password": passw});
+        login = True;
+        return True;
+
+def locateStudents(params = []):
+    unlimitedPower.printStudents(checkID(params, "Subject ID: "));
+
+
+def directives(x):
+"""Command names."""
+    return {
+        "Win": win, # Wait for the queue.
+        "Scan": scan,
+        "Terminate": terminate,
+        "Leaders": locateSuperiors,
+        "Subjects": subjects,
+        "Line": line, # Get queue.
+        "Enter": enter,
+        "Students": locateStudents,
+        "Follow": follow, # Make someone join queue element.
+        "Update": update,
+        "Upd": upd,
+        "Patience": move, # Change queue position.
+        "Initiate": initiate, # Start queue.
+        "Destroy": destroy, # Stop queue.
+        "Leave": leave
+        }.get(x, scan);
+
+def taskArray():
+    tasks = [];
+    i = 0;
+    print("Enter the tasks (-1 to stop)");
+    while i != -1:
+        i = int(input("Task: "));
+        if (i != -1):
+            tasks.append(i);
+    return tasks;
+
+def needHelp():
+    return False if (input("Help?(n for approve, y for help): ") == "n") else True
+
+def writeFile(file, data):
+    with open(file, "w") as outfile:
+        json.dump(data, outfile);
+    print("Data saved in " + file);
+
+while(repeat):
+    print("\nDirective: ");
+    d = input().split(" ");
+    directive = d[0];
+    params = d[1:];
+    if (directive):
+        if(len(params) >= 1):
+            directives(directive)(params);
+        else:
+            directives(directive)();

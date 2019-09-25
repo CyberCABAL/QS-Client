@@ -1,2 +1,4 @@
-qs.psw
+*.data
+*.psw
 .idea
+/__pycache__
