@@ -167,7 +167,7 @@ def locateStudents(params = []):
 
 
 def directives(x):
-"""Command names."""
+    """Command names."""
     return {
         "Win": win, # Wait for the queue.
         "Scan": scan,
