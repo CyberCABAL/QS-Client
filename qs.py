@@ -169,21 +169,21 @@ def locateStudents(params = []):
 def directives(x):
     """Command names."""
     return {
-        "Win": win, # Wait for the queue.
-        "Scan": scan,
-        "Terminate": terminate,
+        "Win": win, # Wait for and join the queue.
+        "Scan": scan, # See all open queues.
+        "Terminate": terminate, # End program.
         "Leaders": locateSuperiors,
-        "Subjects": subjects,
+        "Subjects": subjects, # Get subjects.
         "Line": line, # Get queue.
-        "Enter": enter,
-        "Students": locateStudents,
+        "Enter": enter, # Log in.
+        "Students": locateStudents, # Get student list.
         "Follow": follow, # Make someone join queue element.
-        "Update": update,
+        "Update": update, # Update element.
         "Upd": upd,
         "Patience": move, # Change queue position.
         "Initiate": initiate, # Start queue.
         "Destroy": destroy, # Stop queue.
-        "Leave": leave
+        "Leave": leave # Log out.
         }.get(x, scan);
 
 def taskArray():
